@@ -1,5 +1,7 @@
 use crate::enums::{EMessageType, EPayloadType};
 use crate::structs::{AgentMessage, Token};
+use anyhow::Result;
+use aws_sdk_ssm::operation::RequestId;
 use aws_sdk_ssm::types::InstanceInformationStringFilter;
 use bytes::Bytes;
 use crossterm::event::KeyCode;
@@ -8,7 +10,8 @@ use crossterm::terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternate
 use crossterm::{cursor, terminal, ExecutableCommand};
 use futures_util::{SinkExt, StreamExt};
 use std::io::{self, stdout, Write};
-use tokio_websockets::Message;
+use tokio::net::TcpStream;
+use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
@@ -19,7 +22,7 @@ mod ssm;
 mod structs;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::builder()
@@ -76,11 +79,8 @@ async fn main() -> anyhow::Result<()> {
         .send()
         .await?;
 
-    let url = session.stream_url.unwrap();
-    debug!("Session URL: {}", url);
-
     let (mut ws, _) = tokio_websockets::ClientBuilder::new()
-        .uri(&url)
+        .uri(&session.stream_url.clone().unwrap())
         .unwrap()
         .connect()
         .await?;
@@ -89,11 +89,13 @@ async fn main() -> anyhow::Result<()> {
 
     let mut sequence_number = 0i64;
 
-    let token =
-        Token::build_token_message(session.session_id.unwrap(), session.token_value.unwrap());
+    let token = Token::build_token_message(
+        session.request_id().unwrap(),
+        &session.token_value.clone().unwrap(),
+    );
     let token_json = serde_json::to_string_pretty(&token).unwrap();
     debug!("Token: {}", token_json);
-    ws.send(Message::text(token_json)).await?;
+    send_text(&mut ws, token_json, None).await?;
 
     let terminal_size = terminal::size()?;
 
@@ -101,15 +103,17 @@ async fn main() -> anyhow::Result<()> {
         cols: terminal_size.0,
         rows: terminal_size.1,
     };
-    let init_message = ssm::build_init_message(term_options, sequence_number);
-    ws.send(Message::binary(Bytes::from(init_message))).await?;
-    sequence_number += 1;
+    let init_message = ssm::build_init_message(term_options);
+    send_binary(&mut ws, init_message, None).await?;
 
     loop {
         match crossterm::event::read()? {
             crossterm::event::Event::Key(key_event) => match key_event.code {
                 KeyCode::Backspace => {}
-                KeyCode::Enter => {}
+                KeyCode::Enter => {
+                    let input = ssm::build_input_message(&'\n'.to_string(), sequence_number);
+                    send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
+                }
                 KeyCode::Left => {}
                 KeyCode::Right => {}
                 KeyCode::Up => {}
@@ -125,8 +129,7 @@ async fn main() -> anyhow::Result<()> {
                 KeyCode::F(_) => {}
                 KeyCode::Char(c) => {
                     let input = ssm::build_input_message(&c.to_string(), sequence_number);
-                    ws.send(Message::binary(Bytes::from(input))).await?;
-                    sequence_number += 1;
+                    send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
                 }
                 KeyCode::Null => {}
                 KeyCode::Esc => break,
@@ -152,10 +155,9 @@ async fn main() -> anyhow::Result<()> {
             let message = AgentMessage::bytes_to_message(bytes);
 
             if message.message_type != EMessageType::Acknowledge {
-                let ack = ssm::build_acknowledge(sequence_number, &message.message_id);
-                ws.send(Message::binary(Bytes::from(ack))).await?;
+                let ack = ssm::build_acknowledge(sequence_number, message.message_id);
+                send_binary(&mut ws, ack, None).await?;
                 debug!("Sent ack for message: {:?}", message.message_id);
-                sequence_number += 1;
             }
 
             if message.payload_type == EPayloadType::Output {
@@ -171,6 +173,40 @@ async fn main() -> anyhow::Result<()> {
     stdout.execute(LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
     info!("Remote close");
+
+    Ok(())
+}
+
+async fn send_binary(
+    ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    input: Vec<u8>,
+    sequence_number: Option<&mut i64>,
+) -> Result<()> {
+    send_message(ws, Message::binary(Bytes::from(input)), sequence_number).await?;
+
+    Ok(())
+}
+
+async fn send_text(
+    ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    input: String,
+    sequence_number: Option<&mut i64>,
+) -> Result<()> {
+    send_message(ws, Message::text(input), sequence_number).await?;
+
+    Ok(())
+}
+
+async fn send_message(
+    ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    input: Message,
+    sequence_number: Option<&mut i64>,
+) -> Result<()> {
+    if let Some(sequence_number) = sequence_number {
+        *sequence_number += 1;
+    }
+
+    ws.send(input).await?;
 
     Ok(())
 }

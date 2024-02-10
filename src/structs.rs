@@ -1,5 +1,4 @@
 use crate::enums::{EMessageType, EPayloadType};
-use crate::helpers;
 use crate::helpers::{get_sha256_hash, pad_trim};
 use byteorder::{BigEndian, ByteOrder};
 use serde::{Deserialize, Serialize};
@@ -32,7 +31,7 @@ pub struct AgentMessage {
     pub flags: u64,
 
     /// Message id is a 16 byte UUIDv4 identifying the message.
-    pub message_id: Vec<u8>,
+    pub message_id: Uuid,
 
     /// Payload digest is an array of 32 byte containing the SHA-256 hash of the payload.
     pub payload_digest: Vec<u8>,
@@ -61,7 +60,7 @@ impl AgentMessage {
         let sequence_number = BigEndian::read_i64(&bytes[48..56]);
         let flags = BigEndian::read_u64(&bytes[56..64]);
 
-        let message_id = bytes[64..80].to_vec();
+        let message_id = Uuid::from_slice(&bytes[64..80]).unwrap();
 
         let payload_digest = bytes[80..112].to_vec();
 
@@ -130,7 +129,7 @@ impl AgentMessage {
         bytes.extend_from_slice(&flags);
 
         // Message ID
-        bytes.extend_from_slice(&self.message_id);
+        bytes.extend_from_slice(&self.message_id.into_bytes());
 
         // Payload Digest
         bytes.extend_from_slice(&self.payload_digest);
@@ -173,7 +172,7 @@ impl AgentMessage {
             created_date,
             sequence_number,
             flags,
-            message_id: Uuid::new_v4().into_bytes().to_vec(),
+            message_id: Uuid::new_v4(),
             payload_digest,
             payload_type,
             payload_length: payload_bytes.len() as i32,
@@ -201,7 +200,10 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn build_token_message(request_id: String, token_value: String) -> Self {
+    pub fn build_token_message(request_id: &str, token_value: &str) -> Self {
+        let request_id = request_id.to_string();
+        let token_value = token_value.to_string();
+
         Self {
             message_schema_version: "1.0",
             request_id,
@@ -210,16 +212,21 @@ impl Token {
     }
 }
 
+/// AcknowledgeContent is used to inform the sender of an acknowledge message that the message has been received.
+/// * MessageType is a 32 byte UTF-8 string containing the message type.
+/// * MessageId is a 40 byte UTF-8 string containing the UUID identifying this message being acknowledged.
+/// * SequenceNumber is an 8 byte integer containing the message sequence number for serialized message.
+/// * IsSequentialMessage is a boolean field representing whether the acknowledged message is part of a sequence
 #[derive(Serialize)]
-pub struct AcknowledgePayload {
+pub struct AcknowledgeContent {
     #[serde(rename = "AcknowledgedMessageType")]
-    pub acknowledged_message_type: &'static str,
+    pub message_type: &'static str,
 
     #[serde(rename = "AcknowledgedMessageId")]
-    pub acknowledged_message_id: String,
+    pub message_id: String,
 
     #[serde(rename = "AcknowledgedMessageSequenceNumber")]
-    pub acknowledged_message_sequence_number: i64,
+    pub sequence_number: i64,
 
     #[serde(rename = "IsSequentialMessage")]
     pub is_sequential_message: bool,

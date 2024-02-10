@@ -1,13 +1,14 @@
 use crate::enums::{EMessageType, EPayloadType};
-use crate::structs::{AcknowledgePayload, AgentMessage, TermOptions};
+use crate::structs::{AcknowledgeContent, AgentMessage, TermOptions};
+use std::sync::Mutex;
 use tracing::debug;
 use uuid::Uuid;
 
-pub fn build_init_message(term_options: TermOptions, sequence_number: i64) -> Vec<u8> {
+pub fn build_init_message(term_options: TermOptions) -> Vec<u8> {
     let init_message = AgentMessage::build_agent_message(
         &serde_json::to_string(&term_options).unwrap(),
         EMessageType::InputStreamData,
-        sequence_number,
+        0,
         EPayloadType::Parameter,
         1,
     );
@@ -17,11 +18,11 @@ pub fn build_init_message(term_options: TermOptions, sequence_number: i64) -> Ve
     init_message.message_to_bytes()
 }
 
-pub fn build_acknowledge(sequence_number: i64, message_id: &[u8]) -> Vec<u8> {
-    let payload = AcknowledgePayload {
-        acknowledged_message_type: EMessageType::OutputStreamData.to_string(),
-        acknowledged_message_id: Uuid::from_slice(message_id).unwrap().to_string(),
-        acknowledged_message_sequence_number: sequence_number,
+pub fn build_acknowledge(sequence_number: i64, message_id: Uuid) -> Vec<u8> {
+    let payload = AcknowledgeContent {
+        message_type: EMessageType::OutputStreamData.to_string(),
+        message_id: message_id.to_string(),
+        sequence_number: sequence_number,
         is_sequential_message: true,
     };
 
