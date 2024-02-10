@@ -9,7 +9,7 @@ use crossterm::style::Print;
 use crossterm::terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{cursor, terminal, ExecutableCommand};
 use futures_util::{SinkExt, StreamExt};
-use std::io::{self, stdout, Write};
+use std::io::{self, stdin, stdout, Read, Write};
 use tokio::net::TcpStream;
 use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
@@ -87,10 +87,10 @@ async fn main() -> Result<()> {
 
     debug!("{:?}", ws);
 
-    let mut sequence_number = 0i64;
+    let mut sequence_number = 0_i64;
 
     let token = Token::build_token_message(
-        session.request_id().unwrap(),
+        session.request_id().unwrap(), //&session.session_id.unwrap(),
         &session.token_value.clone().unwrap(),
     );
     let token_json = serde_json::to_string_pretty(&token).unwrap();
@@ -103,47 +103,17 @@ async fn main() -> Result<()> {
         cols: terminal_size.0,
         rows: terminal_size.1,
     };
-    let init_message = ssm::build_init_message(term_options);
+    let init_message = ssm::build_init_message(term_options, sequence_number);
     send_binary(&mut ws, init_message, None).await?;
 
+    let mut input_buffer = String::new();
+
     loop {
-        match crossterm::event::read()? {
-            crossterm::event::Event::Key(key_event) => match key_event.code {
-                KeyCode::Backspace => {}
-                KeyCode::Enter => {
-                    let input = ssm::build_input_message(&'\n'.to_string(), sequence_number);
-                    send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
-                }
-                KeyCode::Left => {}
-                KeyCode::Right => {}
-                KeyCode::Up => {}
-                KeyCode::Down => {}
-                KeyCode::Home => {}
-                KeyCode::End => {}
-                KeyCode::PageUp => {}
-                KeyCode::PageDown => {}
-                KeyCode::Tab => {}
-                KeyCode::BackTab => {}
-                KeyCode::Delete => {}
-                KeyCode::Insert => {}
-                KeyCode::F(_) => {}
-                KeyCode::Char(c) => {
-                    let input = ssm::build_input_message(&c.to_string(), sequence_number);
-                    send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
-                }
-                KeyCode::Null => {}
-                KeyCode::Esc => break,
-                KeyCode::CapsLock => {}
-                KeyCode::ScrollLock => {}
-                KeyCode::NumLock => {}
-                KeyCode::PrintScreen => {}
-                KeyCode::Pause => {}
-                KeyCode::Menu => {}
-                KeyCode::KeypadBegin => {}
-                KeyCode::Media(_) => {}
-                KeyCode::Modifier(_) => {}
-            },
-            _ => {}
+        if stdin.read_to_string(&mut input_buffer)? > 0 {
+            let input = ssm::build_input_message(&input_buffer, sequence_number);
+            send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
+
+            input_buffer.clear();
         }
 
         if let Some(Ok(msg)) = ws.next().await {
@@ -161,8 +131,7 @@ async fn main() -> Result<()> {
             }
 
             if message.payload_type == EPayloadType::Output {
-                //stdout.execute(Clear(ClearType::All))?;
-                stdout.execute(Print(message.payload))?;
+                stdout.execute(Print(&message.payload))?;
             } else {
                 debug!("{:?}", message);
             }
@@ -204,6 +173,7 @@ async fn send_message(
 ) -> Result<()> {
     if let Some(sequence_number) = sequence_number {
         *sequence_number += 1;
+        println!("Sequence Number: {}", sequence_number)
     }
 
     ws.send(input).await?;

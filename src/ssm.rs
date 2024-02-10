@@ -4,12 +4,12 @@ use std::sync::Mutex;
 use tracing::debug;
 use uuid::Uuid;
 
-pub fn build_init_message(term_options: TermOptions) -> Vec<u8> {
+pub fn build_init_message(term_options: TermOptions, sequence_number: i64) -> Vec<u8> {
     let init_message = AgentMessage::build_agent_message(
         &serde_json::to_string(&term_options).unwrap(),
         EMessageType::InputStreamData,
-        0,
-        EPayloadType::Parameter,
+        sequence_number,
+        EPayloadType::Size,
         1,
     );
 
