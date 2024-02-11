@@ -1,6 +1,5 @@
 use crate::enums::{EMessageType, EPayloadType};
 use crate::structs::{AcknowledgeContent, AgentMessage, TermOptions};
-use std::sync::Mutex;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -39,6 +38,7 @@ pub fn build_acknowledge(sequence_number: i64, message_id: Uuid) -> Vec<u8> {
     ack_message.message_to_bytes()
 }
 
+#[allow(dead_code)]
 pub fn build_input_message(input: &str, sequence_number: i64) -> Vec<u8> {
     let input_message = AgentMessage::build_agent_message(
         input,

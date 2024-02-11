@@ -1,4 +1,3 @@
-use aws_sdk_ssm::client::customize;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use uuid::Uuid;
@@ -19,7 +18,7 @@ pub fn get_sha256_hash(input: &str) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
-pub fn big_endian_uuid(buffer: &[u8]) -> Uuid {
+pub fn parse_uuid(buffer: &[u8]) -> Uuid {
     let uuid = format!(
         "{0}-{1}-{2}-{3}-{4}",
         bytes_to_hex(&buffer[8..12]),
@@ -29,15 +28,7 @@ pub fn big_endian_uuid(buffer: &[u8]) -> Uuid {
         bytes_to_hex(&buffer[2..8])
     );
 
-    let custom_uuid = Uuid::from_str(&uuid).unwrap();
-    let be_uuid = Uuid::from_slice(buffer).unwrap();
-    let le_uuid = Uuid::from_slice_le(buffer).unwrap();
-
-    println!("Custom UUID: {:?}", custom_uuid);
-    println!("Big Endian UUID: {:?}", be_uuid);
-    println!("Little Endian UUID: {:?}", le_uuid);
-
-    custom_uuid
+    Uuid::from_str(&uuid).unwrap()
 }
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
@@ -46,6 +37,7 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
         .fold(String::new(), |acc, &byte| format!("{}{:02x}", acc, byte))
 }
 
+#[allow(dead_code)]
 pub fn pattern_at(source: &[u8], pattern: &[u8]) -> Vec<usize> {
     source
         .windows(pattern.len())

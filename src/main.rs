@@ -2,16 +2,10 @@ use crate::enums::{EMessageType, EPayloadType};
 use crate::structs::{AgentMessage, Token};
 use anyhow::Result;
 use aws_sdk_ssm::operation::RequestId;
-use aws_sdk_ssm::types::InstanceInformationStringFilter;
 use bytes::Bytes;
-use crossterm::event::KeyCode;
-use crossterm::style::Print;
-use crossterm::terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
-use crossterm::{cursor, terminal, ExecutableCommand};
+use crossterm::terminal;
 use futures_util::{SinkExt, StreamExt};
-use std::task::Poll;
-use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWriteExt};
-use tokio::io::{stdin, stdout};
+use tokio::io::{self, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
@@ -108,9 +102,7 @@ async fn main() -> Result<()> {
     let init_message = ssm::build_init_message(term_options, sequence_number);
     send_binary(&mut ws, init_message, Some(&mut sequence_number)).await?;
 
-    let mut stdin = stdin();
     let mut stdout = io::stdout();
-    let mut input_buffer = String::new();
 
     loop {
         //if stdin.poll_read(&mut input_buffer).await? > 0 {
