@@ -40,14 +40,12 @@ pub fn build_acknowledge(sequence_number: i64, message_id: Uuid) -> Vec<u8> {
 }
 
 pub fn build_input_message(input: &str, sequence_number: i64) -> Vec<u8> {
-    let flags = if sequence_number == 1 { 0 } else { 1 };
-
     let input_message = AgentMessage::build_agent_message(
         input,
         EMessageType::InputStreamData,
         sequence_number,
         EPayloadType::Output,
-        flags,
+        if sequence_number == 1 { 0 } else { 1 },
     );
 
     input_message.message_to_bytes()

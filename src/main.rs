@@ -63,14 +63,14 @@ async fn main() -> Result<()> {
 
     info!("Instance ID: {}", instance_id);
 
-    let mut stdout = std::io::stdout();
-    let mut stdin = std::io::stdin();
-    terminal::enable_raw_mode()?;
+    //let mut stdout = stdout();
+    //let mut stdin = stdin();
+    //terminal::enable_raw_mode()?;
 
-    stdout.execute(EnterAlternateScreen)?;
-    stdout.execute(Clear(ClearType::All))?;
-    stdout.execute(cursor::MoveTo(0, 0))?;
-    stdout.flush()?;
+    //stdout.execute(EnterAlternateScreen)?;
+    //stdout.execute(Clear(ClearType::All))?;
+    //stdout.execute(cursor::MoveTo(0, 0))?;
+    //stdout.flush()?;
 
     let session = ssm
         .start_session()
@@ -85,17 +85,19 @@ async fn main() -> Result<()> {
         .connect()
         .await?;
 
+    info!("Connected");
+
     debug!("{:?}", ws);
 
     let mut sequence_number = 0_i64;
 
     let token = Token::build_token_message(
-        session.request_id().unwrap(), //&session.session_id.unwrap(),
+        session.request_id().unwrap(),
         &session.token_value.clone().unwrap(),
     );
-    let token_json = serde_json::to_string_pretty(&token).unwrap();
+    let token_json = serde_json::to_string(&token).unwrap();
     debug!("Token: {}", token_json);
-    send_text(&mut ws, token_json, None).await?;
+    send_text(&mut ws, token_json).await?;
 
     let terminal_size = terminal::size()?;
 
@@ -104,17 +106,17 @@ async fn main() -> Result<()> {
         rows: terminal_size.1,
     };
     let init_message = ssm::build_init_message(term_options, sequence_number);
-    send_binary(&mut ws, init_message, None).await?;
+    send_binary(&mut ws, init_message, Some(&mut sequence_number)).await?;
 
     let mut input_buffer = String::new();
 
     loop {
-        if stdin.read_to_string(&mut input_buffer)? > 0 {
-            let input = ssm::build_input_message(&input_buffer, sequence_number);
-            send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
-
-            input_buffer.clear();
-        }
+        //if stdin.read_to_string(&mut input_buffer)? > 0 {
+        //    let input = ssm::build_input_message(&input_buffer, sequence_number);
+        //    send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
+        //
+        //    input_buffer.clear();
+        //}
 
         if let Some(Ok(msg)) = ws.next().await {
             if msg.is_close() {
@@ -131,7 +133,8 @@ async fn main() -> Result<()> {
             }
 
             if message.payload_type == EPayloadType::Output {
-                stdout.execute(Print(&message.payload))?;
+                //stdout.execute(Print(&message.payload))?;
+                println!("{}", message.payload);
             } else {
                 debug!("{:?}", message);
             }
@@ -139,8 +142,8 @@ async fn main() -> Result<()> {
     }
 
     ws.close().await?;
-    stdout.execute(LeaveAlternateScreen)?;
-    terminal::disable_raw_mode()?;
+    //stdout.execute(LeaveAlternateScreen)?;
+    //terminal::disable_raw_mode()?;
     info!("Remote close");
 
     Ok(())
@@ -159,9 +162,8 @@ async fn send_binary(
 async fn send_text(
     ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     input: String,
-    sequence_number: Option<&mut i64>,
 ) -> Result<()> {
-    send_message(ws, Message::text(input), sequence_number).await?;
+    send_message(ws, Message::text(input), None).await?;
 
     Ok(())
 }
