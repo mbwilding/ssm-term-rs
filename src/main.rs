@@ -11,6 +11,9 @@ use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
+use crate::models::channel_closed::ChannelClosed;
+use crate::models::output_stream_data::OutputStreamData;
+use crate::models::pause_publication::PausePublication;
 use crate::models::start_publication::StartPublication;
 
 mod enums;
@@ -126,7 +129,7 @@ async fn main() -> Result<()> {
                 continue;
             }
 
-            println!("Payload\n{}", message.payload);
+            println!("Payload [{}]\n{}", &message.message_type.to_string(), &message.payload);
 
             match message.message_type {
                 EMessageType::InteractiveShell => {}
@@ -134,14 +137,22 @@ async fn main() -> Result<()> {
                 EMessageType::TaskComplete => {}
                 EMessageType::TaskAcknowledge => {}
                 EMessageType::AgentSession => {}
-                EMessageType::ChannelClosed => {}
-                EMessageType::OutputStreamData => {}
+                EMessageType::ChannelClosed => {
+                    let payload = serde_json::from_str::<ChannelClosed>(&message.payload).unwrap();
+                    println!("{:#?}", &payload);
+                }
+                EMessageType::OutputStreamData => {
+                    let payload = serde_json::from_str::<OutputStreamData>(&message.payload).unwrap();
+                    println!("{:#?}", &payload);
+                }
                 EMessageType::InputStreamData => {}
-                EMessageType::PausePublication => {}
+                EMessageType::PausePublication => {
+                    let payload = serde_json::from_str::<PausePublication>(&message.payload).unwrap();
+                    println!("{:#?}", &payload);
+                }
                 EMessageType::StartPublication => {
-                    let unescaped = serde_json::from_str::<String>(&message.payload).unwrap();
-                    let payload = serde_json::from_str::<StartPublication>(&unescaped).unwrap();
-                    println!("{:#?}", payload);
+                    let payload = &message.payload;
+                    println!("StartPublication: {:?}", &payload);
                 }
                 EMessageType::AgentJob => {}
                 EMessageType::AgentJobAcknowledge => {}
