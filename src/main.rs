@@ -5,17 +5,19 @@ use aws_sdk_ssm::operation::RequestId;
 use bytes::Bytes;
 use crossterm::terminal;
 use futures_util::{SinkExt, StreamExt};
-use tokio::io::{self, AsyncWriteExt};
+use tokio::io::{self, AsyncWriteExt, Stdout};
 use tokio::net::TcpStream;
 use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
+use crate::models::start_publication::StartPublication;
 
 mod enums;
 mod helpers;
 mod ssm;
 mod structs;
+mod models;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -124,19 +126,31 @@ async fn main() -> Result<()> {
                 continue;
             }
 
-            let ack = ssm::build_acknowledge(sequence_number, message.message_id);
-            send_binary(&mut ws, ack, None).await?;
-            debug!("Sent ack for message: {:?}", message.message_id);
+            println!("Payload\n{}", message.payload);
 
-            if message.payload_type == EPayloadType::Output {
-                stdout
-                    .write_all(message.payload.into_bytes().as_slice())
-                    .await?;
-                //stdout.execute(Print(&message.payload))?;
-                //println!("{}", message.payload);
-            } else {
-                debug!("{:?}", message);
+            match message.message_type {
+                EMessageType::InteractiveShell => {}
+                EMessageType::TaskReply => {}
+                EMessageType::TaskComplete => {}
+                EMessageType::TaskAcknowledge => {}
+                EMessageType::AgentSession => {}
+                EMessageType::ChannelClosed => {}
+                EMessageType::OutputStreamData => {}
+                EMessageType::InputStreamData => {}
+                EMessageType::PausePublication => {}
+                EMessageType::StartPublication => {
+                    let unescaped = serde_json::from_str::<String>(&message.payload).unwrap();
+                    let payload = serde_json::from_str::<StartPublication>(&unescaped).unwrap();
+                    println!("{:#?}", payload);
+                }
+                EMessageType::AgentJob => {}
+                EMessageType::AgentJobAcknowledge => {}
+                EMessageType::AgentJobReplyAck => {}
+                EMessageType::AgentJobReply => {},
+                _ => {}
             }
+
+            send_ack(&mut ws, sequence_number, &mut stdout, message).await?;
         }
     }
 
@@ -144,6 +158,24 @@ async fn main() -> Result<()> {
     //stdout.execute(LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
     info!("Remote close");
+
+    Ok(())
+}
+
+async fn send_ack(mut ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>, mut sequence_number: i64, stdout: &mut Stdout, message: AgentMessage) -> Result<()> {
+    let ack = ssm::build_acknowledge(sequence_number, message.message_id);
+    send_binary(&mut ws, ack, None).await?;
+    debug!("Sent ack for message: {:?}", message.message_id);
+
+    if message.payload_type == EPayloadType::Output {
+        stdout
+            .write_all(message.payload.into_bytes().as_slice())
+            .await?;
+        //stdout.execute(Print(&message.payload))?;
+        //println!("{}", message.payload);
+    } else {
+        debug!("{:?}", message);
+    }
 
     Ok(())
 }
