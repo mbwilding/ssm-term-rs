@@ -1,5 +1,5 @@
 use crate::enums::{EMessageType, EPayloadType};
-use crate::helpers::{get_sha256_hash, pad_trim};
+use crate::helpers::{big_endian_uuid, get_sha256_hash, pad_trim};
 use byteorder::{BigEndian, ByteOrder};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -60,7 +60,7 @@ impl AgentMessage {
         let sequence_number = BigEndian::read_i64(&bytes[48..56]);
         let flags = BigEndian::read_u64(&bytes[56..64]);
 
-        let message_id = Uuid::from_slice(&bytes[64..80]).unwrap();
+        let message_id = big_endian_uuid(&bytes[64..80]);
 
         let payload_digest = bytes[80..112].to_vec();
 

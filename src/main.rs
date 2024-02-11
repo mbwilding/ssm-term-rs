@@ -9,7 +9,9 @@ use crossterm::style::Print;
 use crossterm::terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{cursor, terminal, ExecutableCommand};
 use futures_util::{SinkExt, StreamExt};
-use std::io::{self, stdin, stdout, Read, Write};
+use std::task::Poll;
+use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{stdin, stdout};
 use tokio::net::TcpStream;
 use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
@@ -33,6 +35,8 @@ async fn main() -> Result<()> {
         .without_time()
         .compact()
         .init();
+
+    terminal::enable_raw_mode()?;
 
     let config = aws_config::load_from_env().await;
     let ssm = aws_sdk_ssm::Client::new(&config);
@@ -62,10 +66,6 @@ async fn main() -> Result<()> {
         .unwrap();
 
     info!("Instance ID: {}", instance_id);
-
-    //let mut stdout = stdout();
-    //let mut stdin = stdin();
-    //terminal::enable_raw_mode()?;
 
     //stdout.execute(EnterAlternateScreen)?;
     //stdout.execute(Clear(ClearType::All))?;
@@ -108,13 +108,14 @@ async fn main() -> Result<()> {
     let init_message = ssm::build_init_message(term_options, sequence_number);
     send_binary(&mut ws, init_message, Some(&mut sequence_number)).await?;
 
+    let mut stdin = stdin();
+    let mut stdout = io::stdout();
     let mut input_buffer = String::new();
 
     loop {
-        //if stdin.read_to_string(&mut input_buffer)? > 0 {
+        //if stdin.poll_read(&mut input_buffer).await? > 0 {
         //    let input = ssm::build_input_message(&input_buffer, sequence_number);
         //    send_binary(&mut ws, input, Some(&mut sequence_number)).await?;
-        //
         //    input_buffer.clear();
         //}
 
@@ -133,8 +134,11 @@ async fn main() -> Result<()> {
             }
 
             if message.payload_type == EPayloadType::Output {
+                stdout
+                    .write_all(message.payload.into_bytes().as_slice())
+                    .await?;
                 //stdout.execute(Print(&message.payload))?;
-                println!("{}", message.payload);
+                //println!("{}", message.payload);
             } else {
                 debug!("{:?}", message);
             }
@@ -143,7 +147,7 @@ async fn main() -> Result<()> {
 
     ws.close().await?;
     //stdout.execute(LeaveAlternateScreen)?;
-    //terminal::disable_raw_mode()?;
+    terminal::disable_raw_mode()?;
     info!("Remote close");
 
     Ok(())
