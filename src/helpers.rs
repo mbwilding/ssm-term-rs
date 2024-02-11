@@ -1,5 +1,4 @@
 use sha2::{Digest, Sha256};
-use std::str::FromStr;
 use uuid::Uuid;
 
 pub fn pad_trim(bytes: &[u8], desired: usize) -> Vec<u8> {
@@ -19,22 +18,15 @@ pub fn get_sha256_hash(input: &str) -> Vec<u8> {
 }
 
 pub fn parse_uuid(buffer: &[u8]) -> Uuid {
-    let uuid = format!(
-        "{0}-{1}-{2}-{3}-{4}",
-        bytes_to_hex(&buffer[8..12]),
-        bytes_to_hex(&buffer[12..14]),
-        bytes_to_hex(&buffer[14..16]),
-        bytes_to_hex(&buffer[0..2]),
-        bytes_to_hex(&buffer[2..8])
-    );
+    let mut uuid_bytes = [0u8; 16];
 
-    Uuid::from_str(&uuid).unwrap()
-}
+    uuid_bytes[0..4].copy_from_slice(&buffer[8..12]);
+    uuid_bytes[4..6].copy_from_slice(&buffer[12..14]);
+    uuid_bytes[6..8].copy_from_slice(&buffer[14..16]);
+    uuid_bytes[8..10].copy_from_slice(&buffer[0..2]);
+    uuid_bytes[10..16].copy_from_slice(&buffer[2..8]);
 
-fn bytes_to_hex(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .fold(String::new(), |acc, &byte| format!("{}{:02x}", acc, byte))
+    Uuid::from_bytes(uuid_bytes)
 }
 
 #[allow(dead_code)]
