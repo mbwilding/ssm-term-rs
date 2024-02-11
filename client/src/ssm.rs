@@ -1,9 +1,9 @@
 use crate::enums::{EMessageType, EPayloadType};
-use crate::structs::{AcknowledgeContent, AgentMessage, TermOptions};
+use crate::structs::{AcknowledgeContent, AgentMessage, SizeData};
 use tracing::debug;
 use uuid::Uuid;
 
-pub fn build_init_message(term_options: TermOptions, sequence_number: i64) -> Vec<u8> {
+pub fn build_init_message(term_options: SizeData, sequence_number: i64) -> Vec<u8> {
     let init_message = AgentMessage::build_agent_message(
         &serde_json::to_string(&term_options).unwrap(),
         EMessageType::InputStreamData,

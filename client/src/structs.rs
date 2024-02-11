@@ -185,7 +185,7 @@ impl AgentMessage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TermOptions {
+pub struct SizeData {
     pub cols: u16,
     pub rows: u16,
 }

@@ -99,11 +99,11 @@ async fn main() -> Result<()> {
 
     let terminal_size = terminal::size()?;
 
-    let term_options = structs::TermOptions {
+    let size_data = structs::SizeData {
         cols: terminal_size.0,
         rows: terminal_size.1,
     };
-    let init_message = ssm::build_init_message(term_options, sequence_number);
+    let init_message = ssm::build_init_message(size_data, sequence_number);
     send_binary(&mut ws, init_message, None).await?;
     //send_binary(&mut ws, init_message, Some(&mut sequence_number)).await?;
 
