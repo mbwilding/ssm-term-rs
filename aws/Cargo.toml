@@ -2,3 +2,9 @@
 name = "aws"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+uuid = { version = "1.7.0", features = ["v4"] }
+serde = "1.0.196"
+serde_json = "1.0.113"
+thiserror = "1.0.56"
