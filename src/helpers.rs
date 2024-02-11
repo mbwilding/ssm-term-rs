@@ -29,6 +29,19 @@ pub fn parse_uuid(buffer: &[u8]) -> Uuid {
     Uuid::from_bytes(uuid_bytes)
 }
 
+pub fn uuid_to_be(guid: &mut Vec<u8>) {
+    fn swap(array: &mut Vec<u8>, index1: usize, index2: usize) {
+        let temp = array[index1];
+        array[index1] = array[index2];
+        array[index2] = temp;
+    }
+
+    swap(guid, 0, 3);
+    swap(guid, 1, 2);
+    swap(guid, 4, 5);
+    swap(guid, 6, 7);
+}
+
 #[allow(dead_code)]
 pub fn pattern_at(source: &[u8], pattern: &[u8]) -> Vec<usize> {
     source

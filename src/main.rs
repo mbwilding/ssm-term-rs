@@ -100,7 +100,8 @@ async fn main() -> Result<()> {
         rows: terminal_size.1,
     };
     let init_message = ssm::build_init_message(term_options, sequence_number);
-    send_binary(&mut ws, init_message, Some(&mut sequence_number)).await?;
+    send_binary(&mut ws, init_message, None).await?;
+    //send_binary(&mut ws, init_message, Some(&mut sequence_number)).await?;
 
     let mut stdout = io::stdout();
 
@@ -119,11 +120,13 @@ async fn main() -> Result<()> {
             let bytes = msg.as_payload().iter().as_slice();
             let message = AgentMessage::bytes_to_message(bytes);
 
-            if message.message_type != EMessageType::Acknowledge {
-                let ack = ssm::build_acknowledge(sequence_number, message.message_id);
-                send_binary(&mut ws, ack, None).await?;
-                debug!("Sent ack for message: {:?}", message.message_id);
+            if message.message_type == EMessageType::Acknowledge {
+                continue;
             }
+
+            let ack = ssm::build_acknowledge(sequence_number, message.message_id);
+            send_binary(&mut ws, ack, None).await?;
+            debug!("Sent ack for message: {:?}", message.message_id);
 
             if message.payload_type == EPayloadType::Output {
                 stdout

@@ -20,15 +20,13 @@ pub fn build_init_message(term_options: TermOptions, sequence_number: i64) -> Ve
 pub fn build_acknowledge(sequence_number: i64, message_id: Uuid) -> Vec<u8> {
     let payload = AcknowledgeContent {
         message_type: EMessageType::OutputStreamData.to_string(),
-        message_id: message_id.to_string(),
+        message_id,
         sequence_number,
         is_sequential_message: true,
     };
 
-    let json_payload = serde_json::to_string(&payload).unwrap();
-
     let ack_message = AgentMessage::build_agent_message(
-        &json_payload,
+        &serde_json::to_string(&payload).unwrap(),
         EMessageType::Acknowledge,
         sequence_number,
         EPayloadType::Size,

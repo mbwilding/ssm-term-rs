@@ -1,4 +1,5 @@
 use crate::enums::{EMessageType, EPayloadType};
+use crate::helpers;
 use crate::helpers::{get_sha256_hash, pad_trim, parse_uuid};
 use byteorder::{BigEndian, ByteOrder};
 use serde::{Deserialize, Serialize};
@@ -129,7 +130,9 @@ impl AgentMessage {
         bytes.extend_from_slice(&flags);
 
         // Message ID
-        bytes.extend_from_slice(&self.message_id.into_bytes());
+        let mut uuid_be = self.message_id.as_bytes().to_vec();
+        helpers::uuid_to_be(&mut uuid_be);
+        bytes.extend_from_slice(&uuid_be);
 
         // Payload Digest
         bytes.extend_from_slice(&self.payload_digest);
@@ -223,7 +226,7 @@ pub struct AcknowledgeContent {
     pub message_type: &'static str,
 
     #[serde(rename = "AcknowledgedMessageId")]
-    pub message_id: String,
+    pub message_id: Uuid,
 
     #[serde(rename = "AcknowledgedMessageSequenceNumber")]
     pub sequence_number: i64,
