@@ -1,4 +1,7 @@
 use crate::enums::{EMessageType, EPayloadType};
+use crate::models::channel_closed::ChannelClosed;
+use crate::models::output_stream_data::OutputStreamData;
+use crate::models::pause_publication::PausePublication;
 use crate::structs::{AgentMessage, Token};
 use anyhow::Result;
 use aws_sdk_ssm::operation::RequestId;
@@ -11,16 +14,12 @@ use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
 use tracing::level_filters::LevelFilter;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
-use crate::models::channel_closed::ChannelClosed;
-use crate::models::output_stream_data::OutputStreamData;
-use crate::models::pause_publication::PausePublication;
-use crate::models::start_publication::StartPublication;
 
 mod enums;
 mod helpers;
+mod models;
 mod ssm;
 mod structs;
-mod models;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -88,7 +87,7 @@ async fn main() -> Result<()> {
 
     debug!("{:?}", ws);
 
-    let mut sequence_number = 0_i64;
+    let sequence_number = 0_i64; // TODO: mut
 
     let token = Token::build_token_message(
         session.request_id().unwrap(),
@@ -125,13 +124,14 @@ async fn main() -> Result<()> {
             let bytes = msg.as_payload().iter().as_slice();
             let message = AgentMessage::bytes_to_message(bytes);
 
-            if message.message_type == EMessageType::Acknowledge {
-                continue;
-            }
-
-            println!("Payload [{}]\n{}", &message.message_type.to_string(), &message.payload);
+            println!(
+                "Payload [{}]\n{}",
+                &message.message_type.to_string(),
+                &message.payload
+            );
 
             match message.message_type {
+                EMessageType::Acknowledge => continue,
                 EMessageType::InteractiveShell => {}
                 EMessageType::TaskReply => {}
                 EMessageType::TaskComplete => {}
@@ -142,12 +142,14 @@ async fn main() -> Result<()> {
                     println!("{:#?}", &payload);
                 }
                 EMessageType::OutputStreamData => {
-                    let payload = serde_json::from_str::<OutputStreamData>(&message.payload).unwrap();
+                    let payload =
+                        serde_json::from_str::<OutputStreamData>(&message.payload).unwrap();
                     println!("{:#?}", &payload);
                 }
                 EMessageType::InputStreamData => {}
                 EMessageType::PausePublication => {
-                    let payload = serde_json::from_str::<PausePublication>(&message.payload).unwrap();
+                    let payload =
+                        serde_json::from_str::<PausePublication>(&message.payload).unwrap();
                     println!("{:#?}", &payload);
                 }
                 EMessageType::StartPublication => {
@@ -157,8 +159,7 @@ async fn main() -> Result<()> {
                 EMessageType::AgentJob => {}
                 EMessageType::AgentJobAcknowledge => {}
                 EMessageType::AgentJobReplyAck => {}
-                EMessageType::AgentJobReply => {},
-                _ => {}
+                EMessageType::AgentJobReply => {}
             }
 
             send_ack(&mut ws, sequence_number, &mut stdout, message).await?;
@@ -173,7 +174,12 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn send_ack(mut ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>, mut sequence_number: i64, stdout: &mut Stdout, message: AgentMessage) -> Result<()> {
+async fn send_ack(
+    mut ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    sequence_number: i64,
+    stdout: &mut Stdout,
+    message: AgentMessage,
+) -> Result<()> {
     let ack = ssm::build_acknowledge(sequence_number, message.message_id);
     send_binary(&mut ws, ack, None).await?;
     debug!("Sent ack for message: {:?}", message.message_id);

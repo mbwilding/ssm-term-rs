@@ -1,5 +1,4 @@
 use sha2::{Digest, Sha256};
-use uuid::Uuid;
 
 pub fn pad_trim(bytes: &[u8], desired: usize) -> Vec<u8> {
     if bytes.len() >= desired {
@@ -17,30 +16,7 @@ pub fn get_sha256_hash(input: &str) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
-pub fn parse_uuid(buffer: &[u8]) -> Uuid {
-    let mut uuid_bytes = [0u8; 16];
 
-    uuid_bytes[0..4].copy_from_slice(&buffer[8..12]);
-    uuid_bytes[4..6].copy_from_slice(&buffer[12..14]);
-    uuid_bytes[6..8].copy_from_slice(&buffer[14..16]);
-    uuid_bytes[8..10].copy_from_slice(&buffer[0..2]);
-    uuid_bytes[10..16].copy_from_slice(&buffer[2..8]);
-
-    Uuid::from_bytes(uuid_bytes)
-}
-
-pub fn uuid_to_be(guid: &mut Vec<u8>) {
-    fn swap(array: &mut Vec<u8>, index1: usize, index2: usize) {
-        let temp = array[index1];
-        array[index1] = array[index2];
-        array[index2] = temp;
-    }
-
-    swap(guid, 0, 3);
-    swap(guid, 1, 2);
-    swap(guid, 4, 5);
-    swap(guid, 6, 7);
-}
 
 #[allow(dead_code)]
 pub fn pattern_at(source: &[u8], pattern: &[u8]) -> Vec<usize> {
@@ -49,4 +25,27 @@ pub fn pattern_at(source: &[u8], pattern: &[u8]) -> Vec<usize> {
         .enumerate()
         .filter_map(|(i, window)| if window == pattern { Some(i) } else { None })
         .collect()
+}
+
+pub mod uuid {
+    use uuid::Uuid;
+
+    pub fn parse_uuid(buffer: &[u8]) -> Uuid {
+        let mut uuid_bytes = [0u8; 16];
+
+        uuid_bytes[0..4].copy_from_slice(&buffer[8..12]);
+        uuid_bytes[4..6].copy_from_slice(&buffer[12..14]);
+        uuid_bytes[6..8].copy_from_slice(&buffer[14..16]);
+        uuid_bytes[8..10].copy_from_slice(&buffer[0..2]);
+        uuid_bytes[10..16].copy_from_slice(&buffer[2..8]);
+
+        Uuid::from_bytes(uuid_bytes)
+    }
+
+    pub fn uuid_to_be(uuid: &mut [u8]) {
+        uuid.swap(0, 3);
+        uuid.swap(1, 2);
+        uuid.swap(4, 5);
+        uuid.swap(6, 7);
+    }
 }
