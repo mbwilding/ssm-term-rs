@@ -65,8 +65,9 @@ impl Encrypter {
     }
 
     /// Gets AEAD which is a GCM cipher mode providing authenticated encryption with associated data.
-    pub fn get_aead(&self) {
-        todo!()
+    pub fn get_aead(plain_text_key: &[u8]) -> Aes256Gcm {
+        let key = GenericArray::from_slice(plain_text_key);
+        Aes256Gcm::new(key)
     }
 
     /// GetEncryptedDataKey returns the cipher_text that was pulled from KMS.
