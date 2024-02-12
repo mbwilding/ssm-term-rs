@@ -1,13 +1,14 @@
-use crate::enums::{EMessageType, EPayloadType};
 use crate::models::channel_closed::ChannelClosed;
-use crate::models::output_stream_data::OutputStreamData;
 use crate::models::pause_publication::PausePublication;
-use crate::structs::{AgentMessage, Token};
 use anyhow::Result;
 use aws_sdk_ssm::operation::RequestId;
 use bytes::Bytes;
 use crossterm::terminal;
 use futures_util::{SinkExt, StreamExt};
+use session_manager::message::client_message::message::{
+    ClientMessage, MessageType, PayloadType, SizeData,
+};
+use session_manager::service::service::OpenDataChannelInput;
 use tokio::io::{self, AsyncWriteExt, Stdout};
 use tokio::net::TcpStream;
 use tokio_websockets::{MaybeTlsStream, Message, WebSocketStream};
@@ -15,11 +16,9 @@ use tracing::level_filters::LevelFilter;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
-mod enums;
 mod helpers;
 mod models;
 mod ssm;
-mod structs;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -89,7 +88,7 @@ async fn main() -> Result<()> {
 
     let sequence_number = 0_i64; // TODO: mut
 
-    let token = Token::build_token_message(
+    let token = OpenDataChannelInput::new(
         session.request_id().unwrap(),
         &session.token_value.clone().unwrap(),
     );
@@ -99,9 +98,9 @@ async fn main() -> Result<()> {
 
     let terminal_size = terminal::size()?;
 
-    let size_data = structs::SizeData {
-        cols: terminal_size.0,
-        rows: terminal_size.1,
+    let size_data = SizeData {
+        cols: terminal_size.0 as u32,
+        rows: terminal_size.1 as u32,
     };
     let init_message = ssm::build_init_message(size_data, sequence_number);
     send_binary(&mut ws, init_message, None).await?;
@@ -122,7 +121,7 @@ async fn main() -> Result<()> {
             }
 
             let bytes = msg.as_payload().iter().as_slice();
-            let message = AgentMessage::bytes_to_message(bytes);
+            let message = ClientMessage::deserialize_client_message(bytes)?;
 
             println!(
                 "Payload [{}]\n{}",
@@ -131,35 +130,35 @@ async fn main() -> Result<()> {
             );
 
             match message.message_type {
-                EMessageType::Acknowledge => continue,
-                EMessageType::InteractiveShell => {}
-                EMessageType::TaskReply => {}
-                EMessageType::TaskComplete => {}
-                EMessageType::TaskAcknowledge => {}
-                EMessageType::AgentSession => {}
-                EMessageType::ChannelClosed => {
+                MessageType::InteractiveShell => {}
+                MessageType::AgentTaskReply => {}
+                MessageType::AgentTaskComplete => {}
+                MessageType::AgentTaskAcknowledge => {}
+                MessageType::Acknowledge => continue,
+                MessageType::AgentSessionState => {}
+                MessageType::ChannelClosed => {
                     let payload = serde_json::from_str::<ChannelClosed>(&message.payload).unwrap();
                     println!("{:#?}", &payload);
                 }
-                EMessageType::OutputStreamData => {
-                    let payload =
-                        serde_json::from_str::<OutputStreamData>(&message.payload).unwrap();
-                    println!("{:#?}", &payload);
+                MessageType::OutputStreamData => {
+                    // TODO
+                    //let payload =
+                    //    serde_json::from_str::<OutputStreamData>(&message.payload).unwrap();
+                    //println!("{:#?}", &payload);
                 }
-                EMessageType::InputStreamData => {}
-                EMessageType::PausePublication => {
+                MessageType::InputStreamData => {}
+                MessageType::PausePublication => {
                     let payload =
                         serde_json::from_str::<PausePublication>(&message.payload).unwrap();
                     println!("{:#?}", &payload);
                 }
-                EMessageType::StartPublication => {
-                    let payload = &message.payload;
-                    println!("StartPublication: {:?}", &payload);
+                MessageType::StartPublication => {
+                    println!("StartPublication: {:?}", &message.payload);
                 }
-                EMessageType::AgentJob => {}
-                EMessageType::AgentJobAcknowledge => {}
-                EMessageType::AgentJobReplyAck => {}
-                EMessageType::AgentJobReply => {}
+                MessageType::AgentJob => {}
+                MessageType::AgentJobAck => {}
+                MessageType::AgentJobReplyAck => {}
+                MessageType::AgentJobReply => {}
             }
 
             send_ack(&mut ws, sequence_number, &mut stdout, message).await?;
@@ -178,16 +177,14 @@ async fn send_ack(
     mut ws: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     sequence_number: i64,
     stdout: &mut Stdout,
-    message: AgentMessage,
+    message: ClientMessage,
 ) -> Result<()> {
     let ack = ssm::build_acknowledge(sequence_number, message.message_id);
     send_binary(&mut ws, ack, None).await?;
     debug!("Sent ack for message: {:?}", message.message_id);
 
-    if message.payload_type == EPayloadType::Output {
-        stdout
-            .write_all(message.payload.into_bytes().as_slice())
-            .await?;
+    if message.payload_type == PayloadType::Output {
+        stdout.write_all(message.payload.as_bytes()).await?;
         //stdout.execute(Print(&message.payload))?;
         //println!("{}", message.payload);
     } else {
