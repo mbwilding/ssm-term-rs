@@ -86,7 +86,8 @@ async fn main() -> Result<()> {
 
     debug!("{:?}", ws);
 
-    let sequence_number = 0_i64; // TODO: mut
+    #[allow(unused_mut)]
+    let mut sequence_number = 0_i64;
 
     let token = OpenDataChannelInput::new(
         session.request_id().unwrap(),
@@ -134,7 +135,15 @@ async fn main() -> Result<()> {
                 MessageType::AgentTaskReply => {}
                 MessageType::AgentTaskComplete => {}
                 MessageType::AgentTaskAcknowledge => {}
-                MessageType::Acknowledge => continue,
+                MessageType::Acknowledge => {
+                    //send_binary(
+                    //    &mut ws,
+                    //    ssm::build_input_message("ls\n".to_string(), sequence_number),
+                    //    Some(&mut sequence_number),
+                    //)
+                    //.await?;
+                    continue;
+                }
                 MessageType::AgentSessionState => {}
                 MessageType::ChannelClosed => {
                     let payload = serde_json::from_str::<ChannelClosed>(&message.payload).unwrap();
