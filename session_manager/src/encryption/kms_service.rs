@@ -42,7 +42,7 @@ async fn kms_decrypt(
 pub async fn kms_generate_data_key(
     kms_client: &KmsClient,
     kms_key_id: &str,
-    context: &(&str, &str),
+    context: (&str, &str),
 ) -> Result<Blobs> {
     let generate_data_key = kms_client
         .generate_data_key()

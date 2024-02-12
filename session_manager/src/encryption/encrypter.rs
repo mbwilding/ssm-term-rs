@@ -34,7 +34,7 @@ impl Encrypter {
     pub async fn new(
         kms_client: KmsClient,
         kms_key_id: String,
-        context: &(&str, &str),
+        context: (&str, &str),
     ) -> Result<Self> {
         // TODO: Fix clones
         let kms_clone = kms_client.clone();
@@ -49,7 +49,7 @@ impl Encrypter {
         };
 
         encrypter
-            .generate_encryption_key(&kms_clone, &kms_key_id_clone, &context)
+            .generate_encryption_key(&kms_clone, &kms_key_id_clone, context)
             .await?;
 
         Ok(encrypter)
@@ -59,9 +59,9 @@ impl Encrypter {
         &mut self,
         kms_client: &KmsClient,
         kms_key_id: &str,
-        context: &(&str, &str),
+        context: (&str, &str),
     ) -> Result<()> {
-        let blobs = kms_generate_data_key(kms_client, kms_key_id, &(context.0, context.1)).await?;
+        let blobs = kms_generate_data_key(kms_client, kms_key_id, (context.0, context.1)).await?;
 
         let key_size = blobs.plain_text.as_ref().len() / 2;
 
