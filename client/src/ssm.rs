@@ -1,8 +1,8 @@
 use crate::helpers::get_sha256_hash;
+use chrono::Utc;
 use session_manager::message::client_message::message::{
     AcknowledgeContent, ClientMessage, MessageType, PayloadType, SizeData,
 };
-use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -59,25 +59,17 @@ fn build_agent_message(
     payload_type: PayloadType,
     flags: u64,
 ) -> ClientMessage {
-    let payload_bytes = payload.as_bytes();
-    let payload_digest = get_sha256_hash(&payload);
-
-    let created_date = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-
     ClientMessage {
         header_length: 116,
         message_type,
         schema_version: 1,
-        created_date,
+        created_date: Utc::now(),
         sequence_number,
         flags,
         message_id: Uuid::new_v4(),
-        payload_digest,
+        payload_digest: get_sha256_hash(&payload),
         payload_type,
-        payload_length: payload_bytes.len() as u32,
-        payload: payload,
+        payload_length: payload.len() as u32,
+        payload,
     }
 }

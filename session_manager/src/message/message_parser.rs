@@ -13,6 +13,7 @@
 
 use crate::message::client_message::message::{ClientMessage, ClientMessageError, MessageType};
 use byteorder::{BigEndian, ByteOrder};
+use chrono::{DateTime, Utc};
 use std::mem::size_of;
 use uuid::Uuid;
 
@@ -37,10 +38,21 @@ impl ClientMessage {
             e
         })?;
 
-        let created_date = get_u64(input, Self::CREATED_DATE_OFFSET).map_err(|e| {
-            log::error!("Could not deserialize field created_date with error: {}", e);
-            e
-        })?;
+        let created_date = get_u64(input, Self::CREATED_DATE_OFFSET)
+            .map_err(|e| {
+                log::error!("Could not deserialize field created_date with error: {}", e);
+                e
+            })
+            .and_then(|cd| {
+                Ok(
+                    DateTime::<Utc>::from_timestamp_millis(cd as i64).ok_or_else(|| {
+                        ClientMessageError::DeserializationError(format!(
+                            "Invalid timestamp: {}",
+                            cd
+                        ))
+                    }),
+                )
+            })??;
 
         let sequence_number = get_i64(input, Self::SEQUENCE_NUMBER_OFFSET).map_err(|e| {
             log::error!(
@@ -124,7 +136,7 @@ impl ClientMessage {
             32,
         ));
         bytes.extend_from_slice(&self.schema_version.to_be_bytes());
-        bytes.extend_from_slice(&self.created_date.to_be_bytes());
+        bytes.extend_from_slice(&self.created_date.timestamp_millis().to_be_bytes());
         bytes.extend_from_slice(&self.sequence_number.to_be_bytes());
         bytes.extend_from_slice(&self.flags.to_be_bytes());
         bytes.extend_from_slice(&put_uuid(&self.message_id));

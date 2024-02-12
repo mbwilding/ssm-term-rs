@@ -13,6 +13,7 @@
 
 /// Message package defines data channel messages structure.
 pub mod message {
+    use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use strum_macros::{AsRefStr, Display, EnumString};
     use thiserror::Error;
@@ -218,19 +219,19 @@ pub mod message {
     /// * |         Payload      			|
     #[derive(Debug)]
     pub struct ClientMessage {
-        /// * HL - HeaderLength is a 4 byte integer that represents the header length.
+        /// * HL - HeaderLength is a 4 byte unsigned integer that represents the header length.
         pub header_length: u32,
 
         /// * MessageType is a 32 byte UTF-8 string containing the message type.
         pub message_type: MessageType,
 
-        /// * SchemaVersion is a 4 byte integer containing the message schema version number.
+        /// * SchemaVersion is a 4 byte unsigned integer containing the message schema version number.
         pub schema_version: u32,
 
-        /// * CreatedDate is an 8 byte integer containing the message create epoch millis in UTC.
-        pub created_date: u64,
+        /// * CreatedDate is an 8 byte unsigned integer containing the message create epoch millis in UTC.
+        pub created_date: DateTime<Utc>,
 
-        /// * SequenceNumber is an 8 byte integer containing the message sequence number for serialized message streams.
+        /// * SequenceNumber is an 8 byte signed integer containing the message sequence number for serialized message streams.
         pub sequence_number: i64,
 
         /// * Flags is an 8 byte unsigned integer containing a packed array of control flags:
