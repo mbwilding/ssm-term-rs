@@ -70,7 +70,7 @@ impl Encrypter {
         Aes256Gcm::new(key)
     }
 
-    /// GetEncryptedDataKey returns the cipher_text that was pulled from KMS.
+    /// Returns the cipher_text that was pulled from KMS.
     pub fn get_encrypted_data_key(&self) -> &[u8] {
         &self.cipher_text_key
     }
