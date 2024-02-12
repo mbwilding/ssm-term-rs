@@ -112,7 +112,7 @@ pub mod message {
     #[derive(Display, Copy, Clone, PartialEq, Debug)]
     #[repr(u32)]
     pub enum PayloadType {
-        Ack = 0,
+        Null = 0,
         Output = 1,
         Error = 2,
         Size = 3,
@@ -130,7 +130,7 @@ pub mod message {
     impl From<PayloadType> for u32 {
         fn from(value: PayloadType) -> Self {
             match value {
-                PayloadType::Ack => 0,
+                PayloadType::Null => 0,
                 PayloadType::Output => 1,
                 PayloadType::Error => 2,
                 PayloadType::Size => 3,
@@ -150,7 +150,7 @@ pub mod message {
     impl From<u32> for PayloadType {
         fn from(value: u32) -> Self {
             match value {
-                0 => PayloadType::Ack,
+                0 => PayloadType::Null,
                 1 => PayloadType::Output,
                 2 => PayloadType::Error,
                 3 => PayloadType::Size,
