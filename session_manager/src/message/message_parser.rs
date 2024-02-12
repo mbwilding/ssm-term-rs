@@ -176,7 +176,8 @@ fn get_string(
             ));
         }
     }
-    .trim();
+    .trim()
+    .trim_end_matches('\0');
 
     Ok(string.to_string())
 }

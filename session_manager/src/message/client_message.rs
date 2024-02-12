@@ -21,6 +21,7 @@ pub mod message {
     /// MessageType represents the type of message.
     #[derive(Serialize, Deserialize, EnumString, AsRefStr, Display, Debug, PartialEq)]
     #[strum(serialize_all = "snake_case")]
+    #[serde(rename_all = "snake_case")]
     pub enum MessageType {
         /// InteractiveShell message type for interactive shell.
         InteractiveShell,
