@@ -13,7 +13,6 @@
 
 /// Message package defines data channel messages structure.
 pub mod message {
-    use log::error;
     use serde::{Deserialize, Serialize};
     use strum_macros::{AsRefStr, Display, EnumString};
     use thiserror::Error;
@@ -164,7 +163,7 @@ pub mod message {
                 10 => PayloadType::Flag,
                 11 => PayloadType::StdErr,
                 12 => PayloadType::ExitCode,
-                _ => error!("Invalid value for PayloadType: {}", value),
+                _ => panic!("Invalid value for PayloadType: {}", value),
             }
         }
     }
