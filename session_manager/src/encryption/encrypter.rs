@@ -36,7 +36,7 @@ impl Encrypter {
         kms_key_id: String,
         context: (&str, &str),
     ) -> Result<Self> {
-        let keys = generate_encryption_key(&kms_client, &kms_key_id, context).await?;
+        let keys = Self::generate_encryption_key(&kms_client, &kms_key_id, context).await?;
 
         Ok(Self {
             kms_client,
@@ -46,59 +46,59 @@ impl Encrypter {
             decryption_key: keys.decryption_key,
         })
     }
-}
 
-async fn generate_encryption_key(
-    kms_client: &KmsClient,
-    kms_key_id: &str,
-    context: (&str, &str),
-) -> Result<Keys> {
-    let blobs = kms_generate_data_key(kms_client, kms_key_id, (context.0, context.1)).await?;
+    async fn generate_encryption_key(
+        kms_client: &KmsClient,
+        kms_key_id: &str,
+        context: (&str, &str),
+    ) -> Result<Keys> {
+        let blobs = kms_generate_data_key(kms_client, kms_key_id, (context.0, context.1)).await?;
 
-    let key_size = blobs.plain_text.as_ref().len() / 2;
+        let key_size = blobs.plain_text.as_ref().len() / 2;
 
-    Ok(Keys {
-        encryption_key: blobs.plain_text.as_ref()[..key_size].to_vec(),
-        decryption_key: blobs.plain_text.as_ref()[key_size..].to_vec(),
-        cypher_text_key: blobs.cipher_text.as_ref().to_vec(),
-    })
-}
-
-/// Encrypts a byte slice and returns the encrypted slice.
-fn encrypt(plain_text: &[u8], encryption_key: &[u8]) -> Result<Vec<u8>> {
-    let key = GenericArray::from_slice(encryption_key);
-    let cipher = Aes256Gcm::new(key);
-
-    let mut nonce = [0u8; NONCE_SIZE];
-    OsRng.fill_bytes(&mut nonce);
-    let nonce = GenericArray::from_slice(&nonce);
-
-    // Encrypt plain_text using given key and newly generated nonce
-    match cipher.encrypt(nonce, plain_text) {
-        Ok(mut cipher_text) => {
-            // Append nonce to the beginning of the cipher_text to be used while decrypting
-            let mut result = nonce.to_vec();
-            result.append(&mut cipher_text);
-            Ok(result)
-        }
-        Err(e) => bail!("Unable to encrypt: {}", e),
+        Ok(Keys {
+            encryption_key: blobs.plain_text.as_ref()[..key_size].to_vec(),
+            decryption_key: blobs.plain_text.as_ref()[key_size..].to_vec(),
+            cypher_text_key: blobs.cipher_text.as_ref().to_vec(),
+        })
     }
-}
 
-/// Decrypts a byte slice and returns the decrypted slice.
-fn decrypt(cipher_text: &[u8], decryption_key: &[u8]) -> Result<Vec<u8>> {
-    let key = GenericArray::from_slice(decryption_key);
-    let cipher = Aes256Gcm::new(key);
+    /// Encrypts a byte slice and returns the encrypted slice.
+    fn encrypt(&self, plain_text: &[u8]) -> Result<Vec<u8>> {
+        let key = GenericArray::from_slice(&self.encryption_key);
+        let cipher = Aes256Gcm::new(key);
 
-    // Pull the nonce out of the cipher_text
-    let nonce = &cipher_text[..NONCE_SIZE];
-    let cipher_text_without_nonce = &cipher_text[NONCE_SIZE..];
-    let nonce = GenericArray::from_slice(nonce);
+        let mut nonce = [0u8; NONCE_SIZE];
+        OsRng.fill_bytes(&mut nonce);
+        let nonce = GenericArray::from_slice(&nonce);
 
-    // Decrypt just the actual cipher_text using nonce extracted above
-    match cipher.decrypt(nonce, cipher_text_without_nonce) {
-        Ok(decrypted_data) => Ok(decrypted_data),
-        Err(e) => bail!("Unable to decrypt: {}", e),
+        // Encrypt plain_text using given key and newly generated nonce
+        match cipher.encrypt(nonce, plain_text) {
+            Ok(mut cipher_text) => {
+                // Append nonce to the beginning of the cipher_text to be used while decrypting
+                let mut result = nonce.to_vec();
+                result.append(&mut cipher_text);
+                Ok(result)
+            }
+            Err(e) => bail!("Unable to encrypt: {}", e),
+        }
+    }
+
+    /// Decrypts a byte slice and returns the decrypted slice.
+    fn decrypt(&self, cipher_text: &[u8]) -> Result<Vec<u8>> {
+        let key = GenericArray::from_slice(&self.decryption_key);
+        let cipher = Aes256Gcm::new(key);
+
+        // Pull the nonce out of the cipher_text
+        let nonce = &cipher_text[..NONCE_SIZE];
+        let cipher_text_without_nonce = &cipher_text[NONCE_SIZE..];
+        let nonce = GenericArray::from_slice(nonce);
+
+        // Decrypt just the actual cipher_text using nonce extracted above
+        match cipher.decrypt(nonce, cipher_text_without_nonce) {
+            Ok(decrypted_data) => Ok(decrypted_data),
+            Err(e) => bail!("Unable to decrypt: {}", e),
+        }
     }
 }
 
