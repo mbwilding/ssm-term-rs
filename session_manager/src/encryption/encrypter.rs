@@ -25,7 +25,7 @@ const NONCE_SIZE: usize = 12;
 pub struct Encrypter {
     kms_client: KmsClient,
     kms_key_id: String,
-    ciphertext_key: Vec<u8>,
+    cipher_text_key: Vec<u8>,
     encryption_key: Vec<u8>,
     decryption_key: Vec<u8>,
 }
@@ -41,12 +41,13 @@ impl Encrypter {
         Ok(Self {
             kms_client,
             kms_key_id,
-            ciphertext_key: keys.cypher_text_key,
+            cipher_text_key: keys.cypher_text_key,
             encryption_key: keys.encryption_key,
             decryption_key: keys.decryption_key,
         })
     }
 
+    /// Calls KMS to generate a new encryption key.
     async fn generate_encryption_key(
         kms_client: &KmsClient,
         kms_key_id: &str,
@@ -61,6 +62,21 @@ impl Encrypter {
             decryption_key: blobs.plain_text.as_ref()[key_size..].to_vec(),
             cypher_text_key: blobs.cipher_text.as_ref().to_vec(),
         })
+    }
+
+    /// Gets AEAD which is a GCM cipher mode providing authenticated encryption with associated data.
+    pub fn get_aead(&self) {
+        todo!()
+    }
+
+    /// GetEncryptedDataKey returns the cipher_text that was pulled from KMS.
+    pub fn get_encrypted_data_key(&self) -> &[u8] {
+        &self.cipher_text_key
+    }
+
+    /// Gets the KMS key id that is used to generate the encryption key.
+    pub fn get_kms_key_id(&self) -> &str {
+        &self.kms_key_id
     }
 
     /// Encrypts a byte slice and returns the encrypted slice.
@@ -102,6 +118,7 @@ impl Encrypter {
     }
 }
 
+/// Key container.
 struct Keys {
     encryption_key: Vec<u8>,
     decryption_key: Vec<u8>,
