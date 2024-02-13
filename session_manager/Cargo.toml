@@ -11,7 +11,9 @@ aws-types = "1.1.5"
 aws-sdk-kms = "1.13.0"
 aws-sdk-ssm = "1.14"
 byteorder = "1.5.0"
+bytes = "1.5.0"
 chrono = "0.4.34"
+futures-util = { version = "0.3.30", features = ["sink"] }
 log = "0.4.20"
 rand = "0.8.5"
 serde = "1.0.196"
@@ -19,4 +21,6 @@ serde_json = "1.0.113"
 strum = "0.26.1"
 strum_macros = "0.26.1"
 thiserror = "1.0.56"
+tokio = { version = "1.36.0", features = ["full"] }
+tokio-websockets = { version = "0.5.1", features = ["native-tls", "simd", "client", "ring", "fastrand"] }
 uuid = { version = "1.7.0", features = ["v4", "serde"] }

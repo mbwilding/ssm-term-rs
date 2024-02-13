@@ -11,6 +11,7 @@
 // either express or implied. See the License for the specific language governing
 // permissions and limitations under the License.
 
+use crate::config::config::MESSAGE_SCHEMA_VERSION;
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -41,7 +42,7 @@ impl OpenDataChannelInput {
         let client_id = Uuid::new_v4().to_string();
 
         Self {
-            message_schema_version: "1.0",
+            message_schema_version: MESSAGE_SCHEMA_VERSION,
             request_id,
             token_value,
             client_id,

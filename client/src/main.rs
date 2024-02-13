@@ -76,7 +76,7 @@ async fn main() -> Result<()> {
         .send()
         .await?;
 
-    let (mut ws, _) = tokio_websockets::ClientBuilder::new()
+    let (mut ws, _response) = tokio_websockets::ClientBuilder::new()
         .uri(&session.stream_url.clone().unwrap())
         .unwrap()
         .connect()

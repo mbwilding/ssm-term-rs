@@ -22,6 +22,17 @@ use rand::{rngs::OsRng, RngCore};
 
 const NONCE_SIZE: usize = 12;
 
+pub trait IEncrypter {
+    /// Encrypts a byte slice and returns the encrypted slice.
+    fn encrypt(&self, plain_text: &[u8]) -> Result<Vec<u8>>;
+
+    /// Decrypts a byte slice and returns the decrypted slice.
+    fn decrypt(&self, cipher_text: &[u8]) -> Result<Vec<u8>>;
+
+    /// Returns the cipher_text that was pulled from KMS.
+    fn get_encrypted_data_key(&self) -> &[u8];
+}
+
 pub struct Encrypter {
     kms_client: KmsClient,
     kms_key_id: String,
@@ -70,17 +81,13 @@ impl Encrypter {
         Aes256Gcm::new(key)
     }
 
-    /// Returns the cipher_text that was pulled from KMS.
-    pub fn get_encrypted_data_key(&self) -> &[u8] {
-        &self.cipher_text_key
-    }
-
     /// Gets the KMS key id that is used to generate the encryption key.
     pub fn get_kms_key_id(&self) -> &str {
         &self.kms_key_id
     }
+}
 
-    /// Encrypts a byte slice and returns the encrypted slice.
+impl IEncrypter for Encrypter {
     fn encrypt(&self, plain_text: &[u8]) -> Result<Vec<u8>> {
         let key = GenericArray::from_slice(&self.encryption_key);
         let cipher = Aes256Gcm::new(key);
@@ -101,7 +108,6 @@ impl Encrypter {
         }
     }
 
-    /// Decrypts a byte slice and returns the decrypted slice.
     fn decrypt(&self, cipher_text: &[u8]) -> Result<Vec<u8>> {
         let key = GenericArray::from_slice(&self.decryption_key);
         let cipher = Aes256Gcm::new(key);
@@ -116,6 +122,10 @@ impl Encrypter {
             Ok(decrypted_data) => Ok(decrypted_data),
             Err(e) => bail!("Unable to decrypt: {}", e),
         }
+    }
+
+    fn get_encrypted_data_key(&self) -> &[u8] {
+        &self.cipher_text_key
     }
 }
 

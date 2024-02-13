@@ -12,6 +12,7 @@
 // permissions and limitations under the License.
 
 use std::time::Duration;
+use tokio::time::Interval;
 
 pub const ROLE_PUBLISH_SUBSCRIBE: &str = "publish_subscribe";
 pub const MESSAGE_SCHEMA_VERSION: &str = "1.0";
@@ -32,7 +33,7 @@ pub const DATA_CHANNEL_NUM_MAX_RETRIES: u32 = 5;
 pub const DATA_CHANNEL_RETRY_INITIAL_DELAY_MILLIS: u64 = 100;
 pub const DATA_CHANNEL_RETRY_MAX_INTERVAL_MILLIS: u64 = 5000;
 pub const RETRY_ATTEMPT: u32 = 5;
-pub const PING_TIME_INTERVAL: Duration = Duration::from_secs(5 * 60); // 5 minutes
+pub const PING_TIME_INTERVAL: Interval = tokio::time::interval(Duration::from_secs(60 * 5)); // 5 minutes
 
 // Plugin names
 pub const SHELL_PLUGIN_NAME: &str = "Standard_Stream";
@@ -43,4 +44,5 @@ pub const NON_INTERACTIVE_COMMANDS_PLUGIN_NAME: &str = "NonInteractiveCommands";
 // Agent Versions
 pub const TERMINATE_SESSION_FLAG_SUPPORTED_AFTER_THIS_AGENT_VERSION: &str = "2.3.722.0";
 pub const TCP_MULTIPLEXING_SUPPORTED_AFTER_THIS_AGENT_VERSION: &str = "3.0.196.0";
-pub const TCP_MULTIPLEXING_WITH_SMUX_KEEP_ALIVE_DISABLED_AFTER_THIS_AGENT_VERSION: &str = "3.1.1511.0";
+pub const TCP_MULTIPLEXING_WITH_SMUX_KEEP_ALIVE_DISABLED_AFTER_THIS_AGENT_VERSION: &str =
+    "3.1.1511.0";
